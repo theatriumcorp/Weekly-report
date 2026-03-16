@@ -1,186 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atrium Construction — Weekly Report</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Report Builder</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; }
+  #app { width: 100%; max-width: 680px; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f5f5f5;
-      color: #333;
-      min-height: 100vh;
-    }
+  .header { margin-bottom: 1.5rem; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #111; letter-spacing: -0.3px; }
+  .header p { font-size: 13px; color: #888; margin-top: 4px; line-height: 1.6; }
 
-    header {
-      background: #1a1a2e;
-      color: white;
-      padding: 2rem;
-      text-align: center;
-    }
+  .progress-wrap { margin-bottom: 1.5rem; }
+  .progress-bar { display: flex; gap: 5px; margin-bottom: 6px; }
+  .step { flex: 1; height: 3px; border-radius: 2px; background: #e0e0e0; transition: background 0.3s; }
+  .step.active { background: #3b82f6; }
+  .step.done { background: #16a34a; }
+  .section-name { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #aaa; }
 
-    header h1 {
-      font-size: 1.8rem;
-      margin-bottom: 0.25rem;
-    }
+  .chat-box { background: #fff; border: 1px solid #e8e8e6; border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; min-height: 120px; display: flex; flex-direction: column; gap: 12px; }
 
-    header p {
-      opacity: 0.7;
-      font-size: 0.95rem;
-    }
+  .msg { display: flex; gap: 10px; align-items: flex-start; }
+  .msg.user { flex-direction: row-reverse; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .avatar.ai { background: #dbeafe; color: #1d4ed8; }
+  .avatar.user { background: #f0fdf4; color: #15803d; }
+  .bubble { max-width: 86%; padding: 9px 13px; border-radius: 14px; font-size: 14px; line-height: 1.65; }
+  .bubble.ai { background: #f5f5f3; color: #111; border-bottom-left-radius: 3px; }
+  .bubble.user { background: #fff; border: 1px solid #e8e8e6; color: #111; border-bottom-right-radius: 3px; }
+  .bubble.error-msg { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-size: 13px; }
 
-    main {
-      max-width: 800px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
+  .typing { display: flex; align-items: center; gap: 4px; padding: 9px 13px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; animation: bounce 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
-    .generate-btn {
-      display: block;
-      margin: 0 auto 2rem;
-      padding: 0.75rem 2rem;
-      font-size: 1rem;
-      background: #e94560;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
+  textarea { flex: 1; font-family: inherit; font-size: 14px; padding: 10px 14px; border-radius: 12px; border: 1px solid #e8e8e6; background: #fff; color: #111; resize: none; min-height: 44px; max-height: 120px; line-height: 1.5; outline: none; transition: border-color 0.15s; }
+  textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+  textarea:disabled { opacity: 0.5; }
+  .send-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #e8e8e6; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #555; flex-shrink: 0; transition: all 0.15s; }
+  .send-btn:hover:not(:disabled) { background: #f5f5f3; border-color: #ccc; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .hint { font-size: 11px; color: #bbb; margin-top: 6px; text-align: right; }
 
-    .generate-btn:hover { background: #c73650; }
-    .generate-btn:disabled { background: #999; cursor: not-allowed; }
+  .summary-card { background: #fff; border: 1px solid #e8e8e6; border-radius: 16px; padding: 1.25rem; margin-top: 1rem; }
+  .summary-card h3 { font-size: 13px; font-weight: 600; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .sum-row { margin-bottom: 10px; }
+  .sum-row .lbl { font-size: 11px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .sum-row .val { font-size: 13px; color: #333; line-height: 1.6; }
 
-    .report-container {
-      background: white;
-      border-radius: 8px;
-      padding: 2rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      line-height: 1.7;
-      display: none;
-    }
-
-    .report-container.visible { display: block; }
-
-    .report-container h1,
-    .report-container h2,
-    .report-container h3 {
-      color: #1a1a2e;
-      margin-top: 1.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .report-container h1 { font-size: 1.5rem; }
-    .report-container h2 { font-size: 1.25rem; }
-    .report-container h3 { font-size: 1.1rem; }
-
-    .report-container ul, .report-container ol {
-      padding-left: 1.5rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .report-container li { margin-bottom: 0.3rem; }
-
-    .report-container p { margin-bottom: 0.75rem; }
-
-    .report-container strong { color: #1a1a2e; }
-
-    .loading {
-      text-align: center;
-      padding: 2rem;
-      color: #666;
-      font-size: 1.1rem;
-      display: none;
-    }
-
-    .loading.visible { display: block; }
-
-    .spinner {
-      display: inline-block;
-      width: 24px;
-      height: 24px;
-      border: 3px solid #ddd;
-      border-top-color: #e94560;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-right: 0.5rem;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .error {
-      background: #ffe0e0;
-      color: #c00;
-      padding: 1rem;
-      border-radius: 6px;
-      text-align: center;
-      display: none;
-    }
-
-    .error.visible { display: block; }
-  </style>
+  .gen-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #15803d; background: #f0fdf4; color: #15803d; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; transition: background 0.15s; font-family: inherit; }
+  .gen-btn:hover { background: #dcfce7; }
+</style>
 </head>
 <body>
-  <header>
-    <h1>Atrium Construction Corp</h1>
-    <p>Weekly Status Report Generator</p>
-  </header>
-  <main>
-    <button class="generate-btn" id="generateBtn" onclick="generateReport()">
-      Generate Weekly Report
+<div id="app">
+  <div class="header">
+    <h1>Weekly Report Builder</h1>
+    <p>Answer each question — I'll push you to think it through, then generate the report.</p>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+    <div class="section-name" id="section-name">Starting up…</div>
+  </div>
+
+  <div class="chat-box" id="chat"></div>
+
+  <div class="input-row" id="input-row">
+    <textarea id="input" placeholder="Type your answer…" rows="1"></textarea>
+    <button class="send-btn" id="send-btn" onclick="handleSend()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8L14 2L8 14L7 9L2 8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
     </button>
-    <div class="loading" id="loading">
-      <span class="spinner"></span> Generating report with Claude...
-    </div>
-    <div class="error" id="error"></div>
-    <div class="report-container" id="report"></div>
-  </main>
-  <script>
-    async function generateReport() {
-      const btn = document.getElementById('generateBtn');
-      const loading = document.getElementById('loading');
-      const report = document.getElementById('report');
-      const error = document.getElementById('error');
+  </div>
+  <div class="hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
+</div>
 
-      btn.disabled = true;
-      loading.classList.add('visible');
-      report.classList.remove('visible');
-      error.classList.remove('visible');
+<script>
+const SECTIONS = ["Basics","Work done","Next week","Materials","Approvals","Modifications","Team duties","Issues","Done"];
 
-      try {
-        const res = await fetch('/api/generate', { method: 'POST' });
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
-        const data = await res.json();
-        report.innerHTML = markdownToHtml(data.report);
-        report.classList.add('visible');
-      } catch (err) {
-        error.textContent = 'Failed to generate report. Please check that the ANTHROPIC_API_KEY environment variable is set in Vercel.';
-        error.classList.add('visible');
-      } finally {
-        btn.disabled = false;
-        loading.classList.remove('visible');
+const SYSTEM = `You are helping a construction project manager at Atrium Construction complete a Weekly Progress Report. Interview them one focused question at a time. Be direct and professional — push for specific dates, names, and details. Make them think, not just list things.
+
+Cover these areas in order:
+1. Report basics: report date, project address, team members (client name, architecture firm name, design firm name), week start and end dates
+2. Work performed this week — be specific, ask about inspections, milestones, site visits, subcontractors on site
+3. Work scheduled for next week — require specific dates and task descriptions
+4. Material orders & delivery status — what's ordered, what's confirmed, what's pending, expected dates
+5. Approvals received this week — or N/A if none
+6. Modifications to the project — changes, upgrades, design decisions, pending approvals
+7. Team responsibilities: what does the client need to decide? What does the architecture firm need to deliver and by when? Design firm items? Any subcontractor action items?
+8. Present or anticipated problems — conflicts, risks, anything unresolved
+9. New information received this week
+10. Hot list — the critical items needed to stay on track, with deadlines
+
+After each answer, ask a smart follow-up if something is vague or missing. Summarize each section briefly before moving to the next. Keep responses concise and direct — max 3 sentences per message.
+
+When all 10 areas are fully covered, output EXACTLY this format with no other text before or after:
+REPORT_READY
+{"date":"...","project":"...","team":{"client":"...","arch":"...","design":"..."},"weekOf":"...","workPerformed":[],"workScheduled":[],"materials":[],"approvals":[],"modifications":[],"clientDecisions":[],"archRequests":[],"designRequests":[],"subRequests":[],"problems":[],"newInfo":[],"hotList":[]}`;
+
+let history = [{role:'user', content:"Let's begin the weekly report interview. Start with your first question."}];
+let busy = false;
+let currentSection = 0;
+
+function renderProgress() {
+  const bar = document.getElementById('progress-bar');
+  bar.innerHTML = SECTIONS.map((s,i) => `<div class="step ${i < currentSection ? 'done' : i === currentSection ? 'active' : ''}"></div>`).join('');
+}
+
+function addMsg(role, text, isError) {
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (role === 'user' ? 'user' : 'ai');
+  const avClass = role === 'user' ? 'user' : 'ai';
+  const avLabel = role === 'user' ? 'PM' : 'AI';
+  const bubClass = isError ? 'error-msg' : role;
+  wrap.innerHTML = `<div class="avatar ${avClass}">${avLabel}</div><div class="bubble ${bubClass}">${text.replace(/\n/g,'<br>')}</div>`;
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const d = document.createElement('div');
+  d.className = 'msg ai'; d.id = 'typing';
+  d.innerHTML = `<div class="avatar ai">AI</div><div class="bubble ai typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+function hideTyping() { const e = document.getElementById('typing'); if (e) e.remove(); }
+
+function setUI(on) {
+  busy = !on;
+  document.getElementById('send-btn').disabled = !on;
+  document.getElementById('input').disabled = !on;
+}
+
+function detectSection(txt) {
+  const t = txt.toLowerCase();
+  if (t.includes('report_ready')) return 8;
+  if (t.includes('hot list') || t.includes('problem') || t.includes('new information')) return Math.max(currentSection, 7);
+  if (t.includes('team') || t.includes('client') && t.includes('decis') || t.includes('architect') && t.includes('deliver')) return Math.max(currentSection, 6);
+  if (t.includes('modif') || t.includes('change') || t.includes('upgrade')) return Math.max(currentSection, 5);
+  if (t.includes('approval')) return Math.max(currentSection, 4);
+  if (t.includes('material') || t.includes('deliver') || t.includes('order')) return Math.max(currentSection, 3);
+  if (t.includes('next week') || t.includes('scheduled for')) return Math.max(currentSection, 2);
+  if (t.includes('work perform') || t.includes('done this week') || t.includes('what was completed')) return Math.max(currentSection, 1);
+  if (t.includes('project address') || t.includes('date') || t.includes('team')) return Math.max(currentSection, 0);
+  return currentSection;
+}
+
+async function callAPI(userText) {
+  if (userText !== null) history.push({role:'user', content: userText});
+
+  const resp = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system: SYSTEM,
+      messages: history
+    })
+  });
+
+  if (!resp.ok) {
+    let msg = `HTTP ${resp.status}`;
+    try { const j = await resp.json(); msg += ': ' + (j.error || JSON.stringify(j)); } catch(e) {}
+    throw new Error(msg);
+  }
+
+  const data = await resp.json();
+  const text = data.text;
+  if (!text) throw new Error('Empty response');
+  history.push({role:'assistant', content: text});
+  return text;
+}
+
+function showSummary(data) {
+  document.getElementById('input-row').style.display = 'none';
+  document.querySelector('.hint').style.display = 'none';
+  const app = document.getElementById('app');
+
+  const card = document.createElement('div');
+  card.className = 'summary-card';
+
+  const rows = [
+    {l:'Project', v: data.project},
+    {l:'Report date', v: data.date},
+    {l:'Week of', v: data.weekOf},
+    {l:'Team', v: [data.team?.client, data.team?.arch, data.team?.design].filter(Boolean).join(' · ')},
+    {l:'Work performed', v: (data.workPerformed||[]).join('; ')},
+    {l:'Scheduled next week', v: (data.workScheduled||[]).join('; ')},
+    {l:'Modifications', v: (data.modifications||[]).join('; ')},
+    {l:'Hot list', v: (data.hotList||[]).join('; ')},
+  ].filter(r => r.v);
+
+  card.innerHTML = `<h3>Captured data</h3>` + rows.map(r=>`<div class="sum-row"><div class="lbl">${r.l}</div><div class="val">${r.v}</div></div>`).join('');
+
+  const btn = document.createElement('button');
+  btn.className = 'gen-btn';
+  btn.textContent = '⬇ Generate .docx report';
+  btn.onclick = () => {
+    alert('Copy this data and paste it to Claude:\n\n' + JSON.stringify(data, null, 2));
+  };
+
+  app.appendChild(card);
+  app.appendChild(btn);
+}
+
+async function handleSend() {
+  const inp = document.getElementById('input');
+  const text = inp.value.trim();
+  if (!text || busy) return;
+  inp.value = ''; inp.style.height = 'auto';
+  setUI(false);
+  addMsg('user', text);
+  showTyping();
+
+  try {
+    const reply = await callAPI(text);
+    hideTyping();
+
+    if (reply.startsWith('REPORT_READY')) {
+      currentSection = 8;
+      renderProgress();
+      document.getElementById('section-name').textContent = 'Complete';
+
+      const jsonStr = reply.replace('REPORT_READY', '').trim();
+      let reportData = null;
+      try { reportData = JSON.parse(jsonStr); } catch(e) {
+        const m = jsonStr.match(/\{[\s\S]*\}/);
+        if (m) try { reportData = JSON.parse(m[0]); } catch(e2) {}
       }
+      addMsg('assistant', "All done — here's a summary of what I captured. Click the button below to generate your report.");
+      if (reportData) showSummary(reportData);
+    } else {
+      const sec = detectSection(reply);
+      if (sec > currentSection) {
+        currentSection = sec;
+        renderProgress();
+        document.getElementById('section-name').textContent = SECTIONS[currentSection] || '';
+      }
+      addMsg('assistant', reply);
+      setUI(true);
+      inp.focus();
     }
+  } catch(e) {
+    hideTyping();
+    addMsg('assistant', 'Error: ' + e.message + '. Check console for details.', true);
+    console.error('API error:', e);
+    setUI(true);
+  }
+}
 
-    function markdownToHtml(md) {
-      return md
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/^\- (.+)$/gm, '<li>$1</li>')
-        .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-        .replace(/\n{2,}/g, '</p><p>')
-        .replace(/^(?!<[hulo])/gm, function(match, offset, str) {
-          const before = str.substring(Math.max(0, offset - 1), offset);
-          if (before === '>' || before === '') return match;
-          return match;
-        })
-        .replace(/\n/g, '<br>');
-    }
-  </script>
+document.getElementById('input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+document.getElementById('input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+async function init() {
+  renderProgress();
+  setUI(false);
+  showTyping();
+  try {
+    const opening = await callAPI(null);
+    hideTyping();
+    addMsg('assistant', opening);
+    currentSection = 0;
+    renderProgress();
+    document.getElementById('section-name').textContent = SECTIONS[0];
+    setUI(true);
+    document.getElementById('input').focus();
+  } catch(e) {
+    hideTyping();
+    addMsg('assistant', 'Startup error: ' + e.message, true);
+    console.error(e);
+    setUI(true);
+  }
+}
+
+init();
+</script>
 </body>
 </html>
