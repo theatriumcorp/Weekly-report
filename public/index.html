@@ -81,32 +81,25 @@
 </div>
 
 <script>
-const SECTIONS = ["Basics","Work performed","Next week","Materials","Approvals","Modifications","Team duties","Problems","Info & Hot list","Done"];
+const SECTIONS = ["Basics","Work done","Next week","Modifications","Approvals","Problems","Hot list","Done"];
 
-const SYSTEM = `You are helping a construction project manager at Atrium Construction complete a Weekly Progress Report. Interview them one focused question at a time. Be direct and professional — push for specific dates, names, and details. Make them think, not just list things.
+const SYSTEM = `You are helping a construction project manager at Atrium Construction complete a Weekly Progress Report. Interview them one focused question at a time. Be direct and professional — push for specific details. Keep it simple and focused.
 
-The report follows this exact template. Cover these sections in order:
+Cover these sections in order:
 
-1. REPORT BASICS: report date, project name/address, team members (client name, architecture firm name, design firm name, subcontractor name), who is preparing the report, week start and end dates
-2. WORK PERFORMED THIS WEEK — be specific, ask about inspections, milestones, site visits, subcontractors on site
-3. WORK SCHEDULED FOR NEXT WEEK — require specific dates and task descriptions
-4. STATUS OF MATERIAL ORDERS AND DELIVERIES — what's ordered, what's confirmed, what's pending, expected delivery dates
-5. APPROVALS RECEIVED THIS WEEK — or N/A if none
-6. MODIFICATIONS TO THE PROJECT — changes, upgrades, design decisions, pending approvals
-7. TEAM RESPONSIBILITIES — cover each separately:
-   a. "CLIENT" DECISIONS TO MAKE — what does the client need to decide?
-   b. "ARCHITECTURE FIRM" COMPLETION REQUESTS — what does the architecture firm need to deliver and by when?
-   c. "DESIGN FIRM" COMPLETION REQUESTS — what does the design firm need to deliver and by when?
-   d. "SUBCONTRACTOR" COMPLETION REQUESTS — what does the subcontractor need to deliver and by when?
-8. PRESENT AND/OR ANTICIPATED PROBLEMS — conflicts, risks, anything unresolved
-9. NEW INFORMATION RECEIVED — any new info received this week
-10. HOT LIST OF INFORMATION NEEDED TO STAY ON TRACK — critical items with deadlines
+1. BASICS: report date, project name, week start and end dates
+2. WORK PERFORMED THIS WEEK — what got done? Ask about key milestones, inspections, subcontractor work
+3. WORK SCHEDULED FOR NEXT WEEK — what's planned? Get specific tasks and dates
+4. MODIFICATIONS — any changes, upgrades, or design decisions this week?
+5. APPROVALS NEEDED — what needs to be approved, and by whom?
+6. PROBLEMS — any current or anticipated issues, delays, or conflicts?
+7. HOT LIST — the critical items that need attention to stay on track, with deadlines
 
-After each answer, ask a smart follow-up if something is vague or missing. Summarize each section briefly before moving to the next. Keep responses concise and direct — max 3 sentences per message.
+After each answer, ask a smart follow-up if something is vague. Keep responses concise — max 2 sentences per message. Move quickly through the sections.
 
-When all sections are fully covered, output EXACTLY this format with no other text before or after:
+When all sections are covered, output EXACTLY this format with no other text before or after:
 REPORT_READY
-{"date":"...","project":"...","preparedBy":"...","team":{"client":"...","arch":"...","design":"...","sub":"..."},"weekOf":"...","workPerformed":[],"workScheduled":[],"materials":[],"approvals":[],"modifications":[],"clientDecisions":[],"archRequests":[],"designRequests":[],"subRequests":[],"problems":[],"newInfo":[],"hotList":[]}`;
+{"date":"...","project":"...","weekOf":"...","workPerformed":[],"workScheduled":[],"modifications":[],"approvals":[],"problems":[],"hotList":[]}`;
 
 let history = [{role:'user', content:"Let's begin the weekly report interview. Start with your first question."}];
 let busy = false;
@@ -147,15 +140,14 @@ function setUI(on) {
 
 function detectSection(txt) {
   const t = txt.toLowerCase();
-  if (t.includes('report_ready')) return 8;
-  if (t.includes('hot list') || t.includes('problem') || t.includes('new information')) return Math.max(currentSection, 7);
-  if (t.includes('team') || t.includes('client') && t.includes('decis') || t.includes('architect') && t.includes('deliver')) return Math.max(currentSection, 6);
-  if (t.includes('modif') || t.includes('change') || t.includes('upgrade')) return Math.max(currentSection, 5);
+  if (t.includes('report_ready')) return 7;
+  if (t.includes('hot list') || t.includes('critical')) return Math.max(currentSection, 6);
+  if (t.includes('problem') || t.includes('issue') || t.includes('delay') || t.includes('conflict')) return Math.max(currentSection, 5);
   if (t.includes('approval')) return Math.max(currentSection, 4);
-  if (t.includes('material') || t.includes('deliver') || t.includes('order')) return Math.max(currentSection, 3);
-  if (t.includes('next week') || t.includes('scheduled for')) return Math.max(currentSection, 2);
-  if (t.includes('work perform') || t.includes('done this week') || t.includes('what was completed')) return Math.max(currentSection, 1);
-  if (t.includes('project address') || t.includes('date') || t.includes('team')) return Math.max(currentSection, 0);
+  if (t.includes('modif') || t.includes('change') || t.includes('upgrade')) return Math.max(currentSection, 3);
+  if (t.includes('next week') || t.includes('scheduled') || t.includes('planned')) return Math.max(currentSection, 2);
+  if (t.includes('work perform') || t.includes('done this week') || t.includes('completed') || t.includes('this week')) return Math.max(currentSection, 1);
+  if (t.includes('project') || t.includes('date') || t.includes('week of')) return Math.max(currentSection, 0);
   return currentSection;
 }
 
@@ -195,20 +187,12 @@ function showSummary(data) {
   const rows = [
     {l:'Project', v: data.project},
     {l:'Report date', v: data.date},
-    {l:'Prepared by', v: data.preparedBy},
     {l:'Week of', v: data.weekOf},
-    {l:'Team', v: [data.team?.client, data.team?.arch, data.team?.design, data.team?.sub].filter(Boolean).join(' · ')},
     {l:'Work performed', v: (data.workPerformed||[]).join('; ')},
     {l:'Scheduled next week', v: (data.workScheduled||[]).join('; ')},
-    {l:'Materials', v: (data.materials||[]).join('; ')},
-    {l:'Approvals', v: (data.approvals||[]).join('; ')},
     {l:'Modifications', v: (data.modifications||[]).join('; ')},
-    {l:'Client decisions', v: (data.clientDecisions||[]).join('; ')},
-    {l:'Architecture firm requests', v: (data.archRequests||[]).join('; ')},
-    {l:'Design firm requests', v: (data.designRequests||[]).join('; ')},
-    {l:'Subcontractor requests', v: (data.subRequests||[]).join('; ')},
+    {l:'Approvals needed', v: (data.approvals||[]).join('; ')},
     {l:'Problems', v: (data.problems||[]).join('; ')},
-    {l:'New information', v: (data.newInfo||[]).join('; ')},
     {l:'Hot list', v: (data.hotList||[]).join('; ')},
   ].filter(r => r.v);
 
