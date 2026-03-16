@@ -200,9 +200,34 @@ function showSummary(data) {
 
   const btn = document.createElement('button');
   btn.className = 'gen-btn';
-  btn.textContent = '⬇ Generate .docx report';
-  btn.onclick = () => {
-    alert('Copy this data and paste it to Claude:\n\n' + JSON.stringify(data, null, 2));
+  btn.textContent = '⬇ Download PDF Report';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = 'Generating PDF...';
+    try {
+      const resp = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!resp.ok) throw new Error('Failed to generate PDF');
+      const result = await resp.json();
+      const byteChars = atob(result.pdf);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Weekly_Report_${data.date || 'report'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      btn.textContent = '✓ Downloaded';
+    } catch(e) {
+      alert('Error generating PDF: ' + e.message);
+      btn.textContent = '⬇ Download PDF Report';
+      btn.disabled = false;
+    }
   };
 
   app.appendChild(card);
