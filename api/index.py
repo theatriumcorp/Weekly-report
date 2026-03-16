@@ -1,6 +1,9 @@
 import json
+from flask import Flask, request, send_from_directory
 import anthropic
-from http.server import BaseHTTPRequestHandler
+import os
+
+app = Flask(__name__, static_folder="../public")
 
 ATRIUM_CONSTRUCTION_CONTEXT = """
 Company: Atrium Construction Corp
@@ -32,11 +35,16 @@ Milestones This Week:
 """
 
 
-class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        client = anthropic.Anthropic()
+@app.route("/")
+def home():
+    return send_from_directory(app.static_folder, "index.html")
 
-        prompt = f"""You are a professional construction project manager.
+
+@app.route("/api/generate", methods=["POST"])
+def generate():
+    client = anthropic.Anthropic()
+
+    prompt = f"""You are a professional construction project manager.
 Based on the following project data, generate a concise and professional
 weekly status report for Atrium Construction Corp.
 
@@ -54,15 +62,11 @@ Write the report in a clear, professional format suitable for senior management.
 Use markdown formatting for headers and lists.
 """
 
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-        )
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}],
+    )
 
-        report = response.content[0].text
-
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps({"report": report}).encode())
+    report = response.content[0].text
+    return {"report": report}
