@@ -87,7 +87,7 @@ const SYSTEM = `You are helping a construction project manager at Atrium Constru
 
 The report follows this exact template. Cover these sections in order:
 
-1. REPORT BASICS: report date, project name/address, team members (client name, architecture firm name, design firm name, pool company name), who is preparing the report, week start and end dates
+1. REPORT BASICS: report date, project name/address, team members (client name, architecture firm name, design firm name, subcontractor name), who is preparing the report, week start and end dates
 2. WORK PERFORMED THIS WEEK — be specific, ask about inspections, milestones, site visits, subcontractors on site
 3. WORK SCHEDULED FOR NEXT WEEK — require specific dates and task descriptions
 4. STATUS OF MATERIAL ORDERS AND DELIVERIES — what's ordered, what's confirmed, what's pending, expected delivery dates
@@ -97,7 +97,7 @@ The report follows this exact template. Cover these sections in order:
    a. "CLIENT" DECISIONS TO MAKE — what does the client need to decide?
    b. "ARCHITECTURE FIRM" COMPLETION REQUESTS — what does the architecture firm need to deliver and by when?
    c. "DESIGN FIRM" COMPLETION REQUESTS — what does the design firm need to deliver and by when?
-   d. "POOL COMPANY" COMPLETION REQUESTS — what does the pool company need to deliver and by when?
+   d. "SUBCONTRACTOR" COMPLETION REQUESTS — what does the subcontractor need to deliver and by when?
 8. PRESENT AND/OR ANTICIPATED PROBLEMS — conflicts, risks, anything unresolved
 9. NEW INFORMATION RECEIVED — any new info received this week
 10. HOT LIST OF INFORMATION NEEDED TO STAY ON TRACK — critical items with deadlines
@@ -106,7 +106,7 @@ After each answer, ask a smart follow-up if something is vague or missing. Summa
 
 When all sections are fully covered, output EXACTLY this format with no other text before or after:
 REPORT_READY
-{"date":"...","project":"...","preparedBy":"...","team":{"client":"...","arch":"...","design":"...","pool":"..."},"weekOf":"...","workPerformed":[],"workScheduled":[],"materials":[],"approvals":[],"modifications":[],"clientDecisions":[],"archRequests":[],"designRequests":[],"poolRequests":[],"problems":[],"newInfo":[],"hotList":[]}`;
+{"date":"...","project":"...","preparedBy":"...","team":{"client":"...","arch":"...","design":"...","sub":"..."},"weekOf":"...","workPerformed":[],"workScheduled":[],"materials":[],"approvals":[],"modifications":[],"clientDecisions":[],"archRequests":[],"designRequests":[],"subRequests":[],"problems":[],"newInfo":[],"hotList":[]}`;
 
 let history = [{role:'user', content:"Let's begin the weekly report interview. Start with your first question."}];
 let busy = false;
@@ -197,7 +197,7 @@ function showSummary(data) {
     {l:'Report date', v: data.date},
     {l:'Prepared by', v: data.preparedBy},
     {l:'Week of', v: data.weekOf},
-    {l:'Team', v: [data.team?.client, data.team?.arch, data.team?.design, data.team?.pool].filter(Boolean).join(' · ')},
+    {l:'Team', v: [data.team?.client, data.team?.arch, data.team?.design, data.team?.sub].filter(Boolean).join(' · ')},
     {l:'Work performed', v: (data.workPerformed||[]).join('; ')},
     {l:'Scheduled next week', v: (data.workScheduled||[]).join('; ')},
     {l:'Materials', v: (data.materials||[]).join('; ')},
@@ -206,7 +206,7 @@ function showSummary(data) {
     {l:'Client decisions', v: (data.clientDecisions||[]).join('; ')},
     {l:'Architecture firm requests', v: (data.archRequests||[]).join('; ')},
     {l:'Design firm requests', v: (data.designRequests||[]).join('; ')},
-    {l:'Pool company requests', v: (data.poolRequests||[]).join('; ')},
+    {l:'Subcontractor requests', v: (data.subRequests||[]).join('; ')},
     {l:'Problems', v: (data.problems||[]).join('; ')},
     {l:'New information', v: (data.newInfo||[]).join('; ')},
     {l:'Hot list', v: (data.hotList||[]).join('; ')},
