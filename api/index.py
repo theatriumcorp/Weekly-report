@@ -1,13 +1,10 @@
 import json
-from flask import Flask, request, send_from_directory
 import anthropic
-import os
-
-app = Flask(__name__, static_folder="../public")
+from http.server import BaseHTTPRequestHandler
 
 ATRIUM_CONSTRUCTION_CONTEXT = """
 Company: Atrium Construction Corp
-Week: March 10–14, 2026
+Week: March 10-14, 2026
 
 Active Projects:
 - Riverside Office Tower (Phase 2): Steel framing 78% complete, on schedule
@@ -35,16 +32,11 @@ Milestones This Week:
 """
 
 
-@app.route("/")
-def home():
-    return send_from_directory(app.static_folder, "index.html")
-
-
-@app.route("/api/generate", methods=["POST"])
-def generate():
-    client = anthropic.Anthropic()
-
-    prompt = f"""You are a professional construction project manager.
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        try:
+            client = anthropic.Anthropic()
+            prompt = f"""You are a professional construction project manager.
 Based on the following project data, generate a concise and professional
 weekly status report for Atrium Construction Corp.
 
@@ -61,12 +53,18 @@ Project Data:
 Write the report in a clear, professional format suitable for senior management.
 Use markdown formatting for headers and lists.
 """
-
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    report = response.content[0].text
-    return {"report": report}
+            response = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            report = response.content[0].text
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"report": report}).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
