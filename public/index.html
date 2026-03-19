@@ -475,6 +475,7 @@ async function init() {
 
 /* ── Console test: run testReport() to preview .docx ── */
 window.testReport = function() {
+  document.getElementById('key-overlay').style.display = 'none';
   generateDocx({
     date: '03/19/2026',
     project: '123 Main Street, Miami FL 33101',
