@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Weekly Report Builder</title>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; }
@@ -55,9 +57,29 @@
 
   .gen-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #15803d; background: #f0fdf4; color: #15803d; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; transition: background 0.15s; font-family: inherit; }
   .gen-btn:hover { background: #dcfce7; }
+
+  .key-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+  .key-modal { background: #fff; border-radius: 16px; padding: 2rem; width: 90%; max-width: 420px; }
+  .key-modal h2 { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 6px; }
+  .key-modal p { font-size: 13px; color: #888; margin-bottom: 16px; line-height: 1.6; }
+  .key-modal input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid #e8e8e6; font-family: inherit; font-size: 14px; outline: none; margin-bottom: 12px; }
+  .key-modal input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+  .key-modal button { width: 100%; padding: 11px; border-radius: 10px; border: none; background: #3b82f6; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .key-modal button:hover { background: #2563eb; }
+  .key-modal .err { font-size: 12px; color: #b91c1c; margin-bottom: 8px; display: none; }
 </style>
 </head>
 <body>
+<div class="key-overlay" id="key-overlay">
+  <div class="key-modal">
+    <h2>API Key</h2>
+    <p>Enter your Anthropic API key to get started. It's stored locally in your browser only.</p>
+    <div class="err" id="key-err">Please enter a valid API key.</div>
+    <input type="password" id="key-input" placeholder="sk-ant-…" autocomplete="off">
+    <button onclick="saveKey()">Continue</button>
+  </div>
+</div>
+
 <div id="app">
   <div class="header">
     <h1>Weekly Report Builder</h1>
@@ -81,30 +103,57 @@
 </div>
 
 <script>
-const SECTIONS = ["Basics","Work done","Next week","Modifications","Approvals","Problems","Hot list","Done"];
+const SECTIONS = ["Basics","Work done","Next week","Materials","Approvals","Modifications","Team duties","Issues","Done"];
 
-const SYSTEM = `You are helping a construction project manager at Atrium Construction complete a Weekly Progress Report. Interview them one focused question at a time. Be direct and professional — push for specific details. Keep it simple and focused.
+const SYSTEM = `You are helping a construction project manager at Atrium Construction complete a Weekly Progress Report. Interview them one focused question at a time. Be direct and professional — push for specific dates, names, and details. Make them think, not just list things.
 
-Cover these sections in order:
+Cover these areas in order:
+1. Report basics: report date, project address, team members (client name, architecture firm name, design firm name), week start and end dates
+2. Work performed this week — be specific, ask about inspections, milestones, site visits, subcontractors on site
+3. Work scheduled for next week — require specific dates and task descriptions
+4. Material orders & delivery status — what's ordered, what's confirmed, what's pending, expected dates
+5. Approvals received this week — or N/A if none
+6. Modifications to the project — changes, upgrades, design decisions, pending approvals
+7. Team responsibilities: what does the client need to decide? What does the architecture firm need to deliver and by when? Design firm items? Any subcontractor action items?
+8. Present or anticipated problems — conflicts, risks, anything unresolved
+9. New information received this week
+10. Hot list — the critical items needed to stay on track, with deadlines
 
-1. BASICS: report date, project name, week start and end dates
-2. WORK PERFORMED THIS WEEK — what got done? Ask about key milestones, inspections, subcontractor work
-3. WORK SCHEDULED FOR NEXT WEEK — what's planned? Get specific tasks and dates
-4. MODIFICATIONS — any changes, upgrades, or design decisions this week?
-5. APPROVALS NEEDED — what needs to be approved, and by whom?
-6. PROBLEMS — any current or anticipated issues, delays, or conflicts?
-7. HOT LIST — the critical items that need attention to stay on track, with deadlines
+After each answer, ask a smart follow-up if something is vague or missing. Summarize each section briefly before moving to the next. Keep responses concise and direct — max 3 sentences per message.
 
-After each answer, ask a smart follow-up if something is vague. Keep responses concise — max 2 sentences per message. Move quickly through the sections.
-
-When all sections are covered, output EXACTLY this format with no other text before or after:
+When all 10 areas are fully covered, output EXACTLY this format with no other text before or after:
 REPORT_READY
-{"date":"...","project":"...","weekOf":"...","workPerformed":[],"workScheduled":[],"modifications":[],"approvals":[],"problems":[],"hotList":[]}`;
+{"date":"...","project":"...","team":{"client":"...","arch":"...","design":"..."},"weekOf":"...","workPerformed":[],"workScheduled":[],"materials":[],"approvals":[],"modifications":[],"clientDecisions":[],"archRequests":[],"designRequests":[],"subRequests":[],"problems":[],"newInfo":[],"hotList":[]}`;
 
+let apiKey = localStorage.getItem('anthropic_api_key') || '';
 let history = [{role:'user', content:"Let's begin the weekly report interview. Start with your first question."}];
 let busy = false;
 let currentSection = 0;
 
+/* ── API key modal ── */
+function saveKey() {
+  const input = document.getElementById('key-input');
+  const val = input.value.trim();
+  if (!val || !val.startsWith('sk-')) {
+    const err = document.getElementById('key-err');
+    err.style.display = 'block';
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem('anthropic_api_key', val);
+  document.getElementById('key-overlay').style.display = 'none';
+  init();
+}
+
+document.getElementById('key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveKey();
+});
+
+if (apiKey) {
+  document.getElementById('key-overlay').style.display = 'none';
+}
+
+/* ── UI helpers ── */
 function renderProgress() {
   const bar = document.getElementById('progress-bar');
   bar.innerHTML = SECTIONS.map((s,i) => `<div class="step ${i < currentSection ? 'done' : i === currentSection ? 'active' : ''}"></div>`).join('');
@@ -140,24 +189,33 @@ function setUI(on) {
 
 function detectSection(txt) {
   const t = txt.toLowerCase();
-  if (t.includes('report_ready')) return 7;
-  if (t.includes('hot list') || t.includes('critical')) return Math.max(currentSection, 6);
-  if (t.includes('problem') || t.includes('issue') || t.includes('delay') || t.includes('conflict')) return Math.max(currentSection, 5);
+  if (t.includes('report_ready')) return 8;
+  if (t.includes('hot list') || t.includes('problem') || t.includes('new information')) return Math.max(currentSection, 7);
+  if (t.includes('team') || t.includes('client') && t.includes('decis') || t.includes('architect') && t.includes('deliver')) return Math.max(currentSection, 6);
+  if (t.includes('modif') || t.includes('change') || t.includes('upgrade')) return Math.max(currentSection, 5);
   if (t.includes('approval')) return Math.max(currentSection, 4);
-  if (t.includes('modif') || t.includes('change') || t.includes('upgrade')) return Math.max(currentSection, 3);
-  if (t.includes('next week') || t.includes('scheduled') || t.includes('planned')) return Math.max(currentSection, 2);
-  if (t.includes('work perform') || t.includes('done this week') || t.includes('completed') || t.includes('this week')) return Math.max(currentSection, 1);
-  if (t.includes('project') || t.includes('date') || t.includes('week of')) return Math.max(currentSection, 0);
+  if (t.includes('material') || t.includes('deliver') || t.includes('order')) return Math.max(currentSection, 3);
+  if (t.includes('next week') || t.includes('scheduled for')) return Math.max(currentSection, 2);
+  if (t.includes('work perform') || t.includes('done this week') || t.includes('what was completed')) return Math.max(currentSection, 1);
+  if (t.includes('project address') || t.includes('date') || t.includes('team')) return Math.max(currentSection, 0);
   return currentSection;
 }
 
+/* ── API call (with key + CORS header) ── */
 async function callAPI(userText) {
   if (userText !== null) history.push({role:'user', content: userText});
 
-  const resp = await fetch('/api/chat', {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
     body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 800,
       system: SYSTEM,
       messages: history
     })
@@ -165,17 +223,148 @@ async function callAPI(userText) {
 
   if (!resp.ok) {
     let msg = `HTTP ${resp.status}`;
-    try { const j = await resp.json(); msg += ': ' + (j.error || JSON.stringify(j)); } catch(e) {}
+    try { const j = await resp.json(); msg += ': ' + (j.error?.message || JSON.stringify(j)); } catch(e) {}
     throw new Error(msg);
   }
 
   const data = await resp.json();
-  const text = data.text;
+  const text = (data.content || []).map(b => b.text || '').join('').trim();
   if (!text) throw new Error('Empty response');
   history.push({role:'assistant', content: text});
   return text;
 }
 
+/* ── .docx generation ── */
+function generateDocx(data) {
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType } = docx;
+
+  const hr = () => new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' } }, spacing: { after: 200 } });
+
+  const sectionHeading = (text) => new Paragraph({
+    children: [new TextRun({ text, bold: true, size: 22, font: 'Calibri', color: '1a1a1a' })],
+    spacing: { before: 300, after: 100 },
+    heading: HeadingLevel.HEADING_2
+  });
+
+  const bulletItem = (text) => new Paragraph({
+    children: [new TextRun({ text, size: 20, font: 'Calibri' })],
+    bullet: { level: 0 },
+    spacing: { after: 60 }
+  });
+
+  const emptyLine = () => new Paragraph({ spacing: { after: 100 } });
+
+  const listOrNA = (arr) => {
+    if (!arr || arr.length === 0) return [new Paragraph({ children: [new TextRun({ text: 'N/A', italics: true, size: 20, font: 'Calibri', color: '888888' })], spacing: { after: 60 } })];
+    return arr.map(item => bulletItem(item));
+  };
+
+  const doc = new Document({
+    styles: { default: { document: { run: { font: 'Calibri', size: 20 } } } },
+    sections: [{
+      properties: {
+        page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } }
+      },
+      children: [
+        // Title
+        new Paragraph({
+          children: [new TextRun({ text: 'WEEKLY PROGRESS REPORT', bold: true, size: 32, font: 'Calibri', color: '111111' })],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 80 }
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: 'Atrium Construction', size: 22, font: 'Calibri', color: '555555' })],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 }
+        }),
+        hr(),
+
+        // Report info
+        new Paragraph({ children: [
+          new TextRun({ text: 'Report Date: ', bold: true, size: 20 }),
+          new TextRun({ text: data.date || '—', size: 20 })
+        ], spacing: { after: 60 } }),
+        new Paragraph({ children: [
+          new TextRun({ text: 'Project: ', bold: true, size: 20 }),
+          new TextRun({ text: data.project || '—', size: 20 })
+        ], spacing: { after: 60 } }),
+        new Paragraph({ children: [
+          new TextRun({ text: 'Week of: ', bold: true, size: 20 }),
+          new TextRun({ text: data.weekOf || '—', size: 20 })
+        ], spacing: { after: 60 } }),
+        new Paragraph({ children: [
+          new TextRun({ text: 'Client: ', bold: true, size: 20 }),
+          new TextRun({ text: data.team?.client || '—', size: 20 })
+        ], spacing: { after: 60 } }),
+        new Paragraph({ children: [
+          new TextRun({ text: 'Architecture Firm: ', bold: true, size: 20 }),
+          new TextRun({ text: data.team?.arch || '—', size: 20 })
+        ], spacing: { after: 60 } }),
+        new Paragraph({ children: [
+          new TextRun({ text: 'Design Firm: ', bold: true, size: 20 }),
+          new TextRun({ text: data.team?.design || '—', size: 20 })
+        ], spacing: { after: 100 } }),
+
+        hr(),
+
+        // Sections
+        sectionHeading('Work Performed This Week'),
+        ...listOrNA(data.workPerformed),
+        emptyLine(),
+
+        sectionHeading('Work Scheduled for Next Week'),
+        ...listOrNA(data.workScheduled),
+        emptyLine(),
+
+        sectionHeading('Material Orders & Deliveries'),
+        ...listOrNA(data.materials),
+        emptyLine(),
+
+        sectionHeading('Approvals Received'),
+        ...listOrNA(data.approvals),
+        emptyLine(),
+
+        sectionHeading('Modifications to the Project'),
+        ...listOrNA(data.modifications),
+        emptyLine(),
+
+        sectionHeading('Client Decisions Required'),
+        ...listOrNA(data.clientDecisions),
+        emptyLine(),
+
+        sectionHeading('Architecture Firm Action Items'),
+        ...listOrNA(data.archRequests),
+        emptyLine(),
+
+        sectionHeading('Design Firm Action Items'),
+        ...listOrNA(data.designRequests),
+        emptyLine(),
+
+        sectionHeading('Subcontractor Action Items'),
+        ...listOrNA(data.subRequests),
+        emptyLine(),
+
+        sectionHeading('Present or Anticipated Problems'),
+        ...listOrNA(data.problems),
+        emptyLine(),
+
+        sectionHeading('New Information Received'),
+        ...listOrNA(data.newInfo),
+        emptyLine(),
+
+        sectionHeading('Hot List'),
+        ...listOrNA(data.hotList),
+      ]
+    }]
+  });
+
+  Packer.toBlob(doc).then(blob => {
+    const filename = `Weekly_Report_${(data.date || 'undated').replace(/\//g, '-')}.docx`;
+    saveAs(blob, filename);
+  });
+}
+
+/* ── Summary card ── */
 function showSummary(data) {
   document.getElementById('input-row').style.display = 'none';
   document.querySelector('.hint').style.display = 'none';
@@ -188,10 +377,12 @@ function showSummary(data) {
     {l:'Project', v: data.project},
     {l:'Report date', v: data.date},
     {l:'Week of', v: data.weekOf},
+    {l:'Team', v: [data.team?.client, data.team?.arch, data.team?.design].filter(Boolean).join(' · ')},
     {l:'Work performed', v: (data.workPerformed||[]).join('; ')},
     {l:'Scheduled next week', v: (data.workScheduled||[]).join('; ')},
+    {l:'Materials', v: (data.materials||[]).join('; ')},
+    {l:'Approvals', v: (data.approvals||[]).join('; ')},
     {l:'Modifications', v: (data.modifications||[]).join('; ')},
-    {l:'Approvals needed', v: (data.approvals||[]).join('; ')},
     {l:'Problems', v: (data.problems||[]).join('; ')},
     {l:'Hot list', v: (data.hotList||[]).join('; ')},
   ].filter(r => r.v);
@@ -200,40 +391,14 @@ function showSummary(data) {
 
   const btn = document.createElement('button');
   btn.className = 'gen-btn';
-  btn.textContent = '⬇ Download PDF Report';
-  btn.onclick = async () => {
-    btn.disabled = true;
-    btn.textContent = 'Generating PDF...';
-    try {
-      const resp = await fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!resp.ok) throw new Error('Failed to generate PDF');
-      const result = await resp.json();
-      const byteChars = atob(result.pdf);
-      const byteArray = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Weekly_Report_${data.date || 'report'}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      btn.textContent = '✓ Downloaded';
-    } catch(e) {
-      alert('Error generating PDF: ' + e.message);
-      btn.textContent = '⬇ Download PDF Report';
-      btn.disabled = false;
-    }
-  };
+  btn.textContent = '\u2B07 Generate .docx report';
+  btn.onclick = () => generateDocx(data);
 
   app.appendChild(card);
   app.appendChild(btn);
 }
 
+/* ── Chat flow ── */
 async function handleSend() {
   const inp = document.getElementById('input');
   const text = inp.value.trim();
@@ -258,7 +423,7 @@ async function handleSend() {
         const m = jsonStr.match(/\{[\s\S]*\}/);
         if (m) try { reportData = JSON.parse(m[0]); } catch(e2) {}
       }
-      addMsg('assistant', "All done — here's a summary of what I captured. Click the button below to generate your report.");
+      addMsg('assistant', "All done \u2014 here's a summary of what I captured. Click the button below to generate your report.");
       if (reportData) showSummary(reportData);
     } else {
       const sec = detectSection(reply);
@@ -308,7 +473,8 @@ async function init() {
   }
 }
 
-init();
+// Only auto-start if we already have a key
+if (apiKey) init();
 </script>
 </body>
 </html>
