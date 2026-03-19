@@ -234,126 +234,166 @@ async function callAPI(userText) {
   return text;
 }
 
-/* ── .docx generation ── */
+/* ── .docx generation (Atrium aesthetic) ── */
 function generateDocx(data) {
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType } = docx;
+  const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, TabStopPosition, TabStopType, Tab } = docx;
 
-  const hr = () => new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' } }, spacing: { after: 200 } });
+  // Fonts — Georgia approximates Playfair Display, Calibri Light approximates Inter
+  const SERIF = 'Georgia';
+  const SANS = 'Calibri Light';
+  const CLR = { dark: '111111', mid: '555555', light: '999999', border: 'D0D0D0' };
 
-  const sectionHeading = (text) => new Paragraph({
-    children: [new TextRun({ text, bold: true, size: 22, font: 'Calibri', color: '1a1a1a' })],
-    spacing: { before: 300, after: 100 },
-    heading: HeadingLevel.HEADING_2
+  const thinRule = () => new Paragraph({
+    border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: CLR.border } },
+    spacing: { after: 240 }
   });
 
+  // Uppercase small label
+  const label = (text) => new TextRun({
+    text: text.toUpperCase(),
+    font: SANS, size: 15, color: CLR.mid,
+    characterSpacing: 80
+  });
+
+  // Info row: LABEL    value
+  const infoRow = (lbl, val) => new Paragraph({
+    children: [
+      label(lbl + '   '),
+      new TextRun({ text: val || '\u2014', font: SANS, size: 21, color: CLR.dark })
+    ],
+    spacing: { after: 50 }
+  });
+
+  // Section heading — serif, elegant, with bottom border
+  const sectionHeading = (text) => new Paragraph({
+    children: [new TextRun({ text, font: SERIF, size: 24, color: CLR.dark })],
+    spacing: { before: 320, after: 120 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: CLR.border } }
+  });
+
+  // Bullet item with left indent and dash
   const bulletItem = (text) => new Paragraph({
-    children: [new TextRun({ text, size: 20, font: 'Calibri' })],
-    bullet: { level: 0 },
+    children: [
+      new TextRun({ text: '\u2013  ', font: SANS, size: 19, color: CLR.light }),
+      new TextRun({ text, font: SANS, size: 19, color: CLR.mid })
+    ],
+    indent: { left: 280 },
     spacing: { after: 60 }
   });
 
-  const emptyLine = () => new Paragraph({ spacing: { after: 100 } });
-
   const listOrNA = (arr) => {
-    if (!arr || arr.length === 0) return [new Paragraph({ children: [new TextRun({ text: 'N/A', italics: true, size: 20, font: 'Calibri', color: '888888' })], spacing: { after: 60 } })];
+    if (!arr || arr.length === 0) return [new Paragraph({
+      children: [new TextRun({ text: 'N/A', italics: true, font: SERIF, size: 19, color: CLR.light })],
+      indent: { left: 280 },
+      spacing: { after: 60 }
+    })];
     return arr.map(item => bulletItem(item));
   };
 
   const doc = new Document({
-    styles: { default: { document: { run: { font: 'Calibri', size: 20 } } } },
+    styles: {
+      default: {
+        document: { run: { font: SANS, size: 19, color: CLR.mid } }
+      }
+    },
     sections: [{
       properties: {
-        page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } }
+        page: {
+          margin: { top: 1100, right: 1200, bottom: 1100, left: 1200 },
+          size: { width: 12240, height: 15840 }
+        }
       },
       children: [
-        // Title
+        // ── Header: Title
         new Paragraph({
-          children: [new TextRun({ text: 'WEEKLY PROGRESS REPORT', bold: true, size: 32, font: 'Calibri', color: '111111' })],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 80 }
+          children: [new TextRun({ text: 'Weekly Progress Report', font: SERIF, size: 36, color: CLR.dark })],
+          alignment: AlignmentType.LEFT,
+          spacing: { after: 40 }
         }),
+        // Subtitle / company
         new Paragraph({
-          children: [new TextRun({ text: 'Atrium Construction', size: 22, font: 'Calibri', color: '555555' })],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 200 }
+          children: [new TextRun({
+            text: 'ATRIUM CONSTRUCTION',
+            font: SANS, size: 16, color: CLR.mid,
+            characterSpacing: 160
+          })],
+          spacing: { after: 240 }
         }),
-        hr(),
 
-        // Report info
-        new Paragraph({ children: [
-          new TextRun({ text: 'Report Date: ', bold: true, size: 20 }),
-          new TextRun({ text: data.date || '—', size: 20 })
-        ], spacing: { after: 60 } }),
-        new Paragraph({ children: [
-          new TextRun({ text: 'Project: ', bold: true, size: 20 }),
-          new TextRun({ text: data.project || '—', size: 20 })
-        ], spacing: { after: 60 } }),
-        new Paragraph({ children: [
-          new TextRun({ text: 'Week of: ', bold: true, size: 20 }),
-          new TextRun({ text: data.weekOf || '—', size: 20 })
-        ], spacing: { after: 60 } }),
-        new Paragraph({ children: [
-          new TextRun({ text: 'Client: ', bold: true, size: 20 }),
-          new TextRun({ text: data.team?.client || '—', size: 20 })
-        ], spacing: { after: 60 } }),
-        new Paragraph({ children: [
-          new TextRun({ text: 'Architecture Firm: ', bold: true, size: 20 }),
-          new TextRun({ text: data.team?.arch || '—', size: 20 })
-        ], spacing: { after: 60 } }),
-        new Paragraph({ children: [
-          new TextRun({ text: 'Design Firm: ', bold: true, size: 20 }),
-          new TextRun({ text: data.team?.design || '—', size: 20 })
-        ], spacing: { after: 100 } }),
+        thinRule(),
 
-        hr(),
+        // ── Project info grid (stacked)
+        infoRow('Report Date', data.date),
+        infoRow('Project', data.project),
+        infoRow('Week Of', data.weekOf),
+        infoRow('Client', data.team?.client),
+        infoRow('Architecture', data.team?.arch),
+        infoRow('Design', data.team?.design),
 
-        // Sections
+        new Paragraph({ spacing: { after: 80 } }),
+        thinRule(),
+
+        // ── Report sections
         sectionHeading('Work Performed This Week'),
         ...listOrNA(data.workPerformed),
-        emptyLine(),
 
         sectionHeading('Work Scheduled for Next Week'),
         ...listOrNA(data.workScheduled),
-        emptyLine(),
 
         sectionHeading('Material Orders & Deliveries'),
         ...listOrNA(data.materials),
-        emptyLine(),
 
         sectionHeading('Approvals Received'),
         ...listOrNA(data.approvals),
-        emptyLine(),
 
         sectionHeading('Modifications to the Project'),
         ...listOrNA(data.modifications),
-        emptyLine(),
 
         sectionHeading('Client Decisions Required'),
         ...listOrNA(data.clientDecisions),
-        emptyLine(),
 
         sectionHeading('Architecture Firm Action Items'),
         ...listOrNA(data.archRequests),
-        emptyLine(),
 
         sectionHeading('Design Firm Action Items'),
         ...listOrNA(data.designRequests),
-        emptyLine(),
 
         sectionHeading('Subcontractor Action Items'),
         ...listOrNA(data.subRequests),
-        emptyLine(),
 
         sectionHeading('Present or Anticipated Problems'),
         ...listOrNA(data.problems),
-        emptyLine(),
 
         sectionHeading('New Information Received'),
         ...listOrNA(data.newInfo),
-        emptyLine(),
 
         sectionHeading('Hot List'),
         ...listOrNA(data.hotList),
+
+        // ── Footer
+        new Paragraph({ spacing: { before: 400 } }),
+        new Paragraph({
+          border: { top: { style: BorderStyle.SINGLE, size: 1, color: CLR.border } },
+          spacing: { before: 200, after: 60 },
+          alignment: AlignmentType.CENTER,
+          children: []
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({
+            text: 'ATRIUM CONSTRUCTION INC  |  (954) 907-0772  |  ADMIN@THEATRIUMCORP.COM',
+            font: SANS, size: 14, color: CLR.light,
+            characterSpacing: 60
+          })],
+          spacing: { after: 50 }
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({
+            text: 'Envision  \u2022  Create  \u2022  Enjoy',
+            font: SERIF, italics: true, size: 18, color: CLR.dark
+          })]
+        }),
       ]
     }]
   });
