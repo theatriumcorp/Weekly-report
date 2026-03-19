@@ -473,6 +473,74 @@ async function init() {
   }
 }
 
+/* ── Console test: run testReport() to preview .docx ── */
+window.testReport = function() {
+  generateDocx({
+    date: '03/19/2026',
+    project: '123 Main Street, Miami FL 33101',
+    team: { client: 'Smith Development Group', arch: 'Foster & Partners', design: 'Gensler' },
+    weekOf: '03/16/2026 – 03/20/2026',
+    workPerformed: [
+      'Completed 3rd floor concrete pour — passed inspection 03/17',
+      'MEP rough-in continued on floors 1-2, 85% complete',
+      'Waterproofing crew finished south elevation',
+      'Site visit with client on 03/18 — reviewed lobby finishes'
+    ],
+    workScheduled: [
+      '03/23 — Begin 4th floor formwork',
+      '03/24 — Elevator shaft steel delivery and install',
+      '03/25 — Fire sprinkler rough-in floors 1-2',
+      '03/26 — County inspection for structural steel'
+    ],
+    materials: [
+      'Elevator cab panels — ordered, ETA 04/01',
+      'Lobby stone tile — confirmed delivery 03/28',
+      'Rooftop HVAC units — pending vendor confirmation',
+      'Window frames floors 3-5 — backordered, new ETA 04/10'
+    ],
+    approvals: [
+      'Structural steel shop drawings approved by engineer 03/17',
+      'Lobby design revision approved by client 03/18'
+    ],
+    modifications: [
+      'Client requested upgraded lobby lighting — Lutron Ketra system, +$18K',
+      'Design change: accent wall material switched from wood to porcelain — pending architect sign-off'
+    ],
+    clientDecisions: [
+      'Need final selection on penthouse flooring by 03/25',
+      'Approve or reject rooftop terrace railing design by 03/27'
+    ],
+    archRequests: [
+      'Updated reflected ceiling plans for floors 3-5 needed by 03/24',
+      'Confirm window mullion detail revision by 03/23'
+    ],
+    designRequests: [
+      'Finalize furniture spec for model unit by 03/28',
+      'Provide updated color schedule for common areas'
+    ],
+    subRequests: [
+      'Elevator sub to confirm revised install schedule by 03/21',
+      'Plumbing sub to resolve permit issue on floor 2'
+    ],
+    problems: [
+      'Window frame backorder may delay floor 3-5 enclosure by 10 days',
+      'Plumbing permit hold on floor 2 — awaiting county response',
+      'Potential weather delay next week (tropical storm warning)'
+    ],
+    newInfo: [
+      'County inspector assigned new contact — updated in project directory',
+      'Concrete supplier announced 5% price increase effective 04/01'
+    ],
+    hotList: [
+      'Window frames — escalate with supplier by 03/21 or source alternate',
+      'Penthouse flooring decision — blocking millwork order (03/25 deadline)',
+      'Floor 2 plumbing permit — follow up with county daily',
+      'Rooftop HVAC confirmation — need by 03/24 to hold install slot'
+    ]
+  });
+  console.log('✅ .docx download triggered — check your Downloads folder');
+};
+
 // Only auto-start if we already have a key
 if (apiKey) init();
 </script>
